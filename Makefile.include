@@ -20,7 +20,7 @@
 ###
 
 PDFLATEX	?= pdflatex -halt-on-error -file-line-error
-BIBTEX		?= bibtex
+BIBTEX		 = bibtex
 
 ifneq ($(QUIET),)
 PDFLATEX	+= -interaction=batchmode
@@ -48,26 +48,38 @@ AUXFILES   = $(TARGETS:=.aux)
 LOGFILES   = $(TARGETS:=.log)
 
 ## Inkscape svg handling
-INKSCAPE   = /usr/bin/inkscape
-INKSCAPE_ARGS = --export-latex --export-area-page
-SVGDIR     = svg
-SVGFILES   = $(basename $(notdir $(wildcard $(SVGDIR)/*.svg)))
+INKSCAPE	?= /usr/bin/inkscape
+INKSCAPE_ARGS ?= --export-latex --export-area-page
+SVGDIR		?= svg
+SVGFILES	?= $(basename $(notdir $(wildcard $(SVGDIR)/*.svg)))
+
+BIBLATEX	?= $(shell grep -o '^[^%]*\\usepackage[^{]*{biblatex}' $(TEXTARGETS) \
+					| grep -o 'backend=\(biber\|bibtex\)' \
+					| sed -e 's/backend=//')
+BIBTEX = $(BIBLATEX)
 
 ## If $(TARGET).tex refers to .bib files like \bibliography{foo,bar}, then
 ## $(BIBFILES) will contain foo.bib and bar.bib, and both files will be added as
 ## dependencies to $(PDFTARGETS).
 ## Effect: updating a .bib file will trigger re-typesetting.
-BIBFILES = $(patsubst %,%.bib,\
+BIBFILES = $(addsuffix .bib,\
 		$(shell grep '^[^%]*\\bibliography{' $(TEXTARGETS) | \
 			grep -o '\\bibliography{[^}]\+}' | \
 			sed -e 's/^[^%]*\\bibliography{\([^}]*\)}.*/\1/' \
-			    -e 's/, */ /g'))
+				-e 's/, */ /g'))
+
+ifneq ($(BIBLATEX),) # BibLaTeX not empty
+	BIBFILES += $(shell grep '^[^%]*\\addbibresource{' $(TEXTARGETS) | \
+			grep -o '\\addbibresource{[^}]\+}' | \
+			sed -e 's/^[^%]*\\addbibresource{\([^}]*\)}.*/\1/' \
+				-e 's/, */ /g')
+endif
 
 ## Add \input'ed or \include'd files to $(PDFTARGETS) dependencies.
-INCLUDEDTEX = $(patsubst %,%.tex,\
+INCLUDEDTEX = $(addsuffix .tex,\
 		$(shell grep '^[^%]*\\\(input\|include\){' $(TEXTARGETS) | \
 			grep -o '\\\(input\|include\){[^}]\+}' | \
-			sed -e 's/^.*{\([^}]*\)}.*/\1/' |  \
+			sed -e 's/^.*{\([^}]*\)}.*/\1/' | \
 			grep -v '^img-.*pdf_tex$$'))
 
 AUXFILES += $(INCLUDEDTEX:.tex=.aux)
@@ -120,14 +132,19 @@ endif
 
 # to generate aux but not pdf from pdflatex, use -draftmode
 .INTERMEDIATE: $(AUXFILES)
-%.aux: %.tex $(REVDEPS)
+%.aux %.bbl: %.tex $(REVDEPS)
 	$(PDFLATEX) -draftmode $* $(ERRFILTER)
 
 # introduce BibTeX dependency if we found a \bibliography
 ifneq ($(strip $(BIBFILES)),)
 BIBDEPS = %.bbl
+ifneq ($(BIBLATEX),)
+%.bbl: %.bcf $(BIBFILES)
+	$(BIBLATEX) $*
+else
 %.bbl: %.aux $(BIBFILES)
 	$(BIBTEX) $*
+endif
 endif
 
 $(PDFTARGETS): %.pdf: %.tex $(addsuffix .pdf,$(addprefix img-,$(SVGFILES))) %.aux $(BIBDEPS) $(INCLUDEDTEX) $(REVDEPS)
@@ -154,15 +171,14 @@ snapshot: $(DRAFTS)
 
 distill: $(PDFTARGETS:.pdf=.distilled.pdf)
 
-distclean: clean
+clean-all: clean
 	$(RM) $(PDFTARGETS) $(PDFTARGETS:.pdf=.distilled.pdf) $(EXTRADISTCLEAN)
 
 clean:
 	$(RM) $(foreach T,$(TARGETS), \
 		$(T).out $(T).blg $(T).bbl \
 		$(T).lof $(T).lot $(T).toc $(T).idx \
-		$(T).nav $(T).snm) \
+		$(T).nav $(T).snm $(T).bcf $(T).run.xml) \
 		$(foreach S,$(addprefix img-,$(SVGFILES)),$(S).pdf $(S).pdf_tex) \
 		$(REVDEPS) $(AUXFILES) $(LOGFILES) \
 		$(EXTRACLEAN)
-
