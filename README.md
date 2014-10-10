@@ -25,3 +25,4 @@ Features:
 * Distills a camera-ready PDF (with fonts embedded): `make distill`
 * To generate a draft with the revision number in its filename (to pass
   around), use `make snapshot`.
+* Vector graphics in the `svg/` directory are being compiled into pdf+LaTeX using inkscape

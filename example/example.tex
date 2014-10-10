@@ -12,6 +12,9 @@
 
 \documentclass{article}
 
+\usepackage{graphicx}
+\usepackage{color}
+
 \ifnum\draft=1
   % include the revision number in a footer
   \usepackage{draftfooter}
@@ -23,6 +26,15 @@
 
 % \input{introduction}
 \include{canoe}
+
+\begin{figure}
+\centering
+\small
+\def\svgwidth{\textwidth}
+\input{img-zugprobe-A.pdf_tex}
+\caption{Probenform A nach DIN 50125}
+\label{fig:zugprobeA}
+\end{figure}
 
 \section{Write me}
 \label{sec:write-me}
