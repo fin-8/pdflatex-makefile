@@ -39,6 +39,8 @@ else
 PDFVIEWER	?= xdg-open
 endif
 
+RM = rm -rf
+
 ## Name of the target file, minus .pdf: e.g., TARGET=mypaper causes this
 ## Makefile to turn mypaper.tex into mypaper.pdf.
 TARGETS += $(TARGET)
@@ -109,6 +111,14 @@ else ifneq ($(wildcard .svn/entries),)
   VCSTURD := .svn/entries
 endif
 
+# enable PythonTeX-Support?
+PYTHONTEX	= $(shell grep -o '^[^%]*\\usepackage[^{]*{pythontex}' $(TEXTARGETS))
+ifneq ($(PYTHONTEX),)
+  PYTHONTEXFILES = $(addprefix pythontex-files-,$(TARGETS))
+else
+  PYTHONTEXFILES = $(empty)
+endif
+
 # .PHONY names all targets that aren't filenames
 .PHONY: all clean pdf view snapshot distill distclean
 
@@ -132,7 +142,7 @@ endif
 
 # to generate aux but not pdf from pdflatex, use -draftmode
 .INTERMEDIATE: $(AUXFILES)
-%.aux %.bbl: %.tex $(REVDEPS)
+%.aux %.bbl %.pytxcode: %.tex $(REVDEPS)
 	$(PDFLATEX) -draftmode $* $(ERRFILTER)
 
 # introduce BibTeX dependency if we found a \bibliography
@@ -147,7 +157,12 @@ else
 endif
 endif
 
-$(PDFTARGETS): %.pdf: %.tex $(addsuffix .pdf,$(addprefix img-,$(SVGFILES))) %.aux $(BIBDEPS) $(INCLUDEDTEX) $(REVDEPS)
+ifneq ($(PYTHONTEX),)
+pythontex-files-%: %.pytxcode
+	pythontex $*
+endif
+
+$(PDFTARGETS): %.pdf: %.tex $(addsuffix .pdf,$(addprefix img-,$(SVGFILES))) %.aux $(PYTHONTEXFILES) $(BIBDEPS) $(INCLUDEDTEX) $(REVDEPS)
 	$(PDFLATEX) $* $(ERRFILTER)
 ifneq ($(strip $(BIBFILES)),)
 	@if grep -q "undefined references" $*.log; then \
@@ -175,10 +190,4 @@ clean-all: clean
 	$(RM) $(PDFTARGETS) $(PDFTARGETS:.pdf=.distilled.pdf) $(EXTRADISTCLEAN)
 
 clean:
-	$(RM) $(foreach T,$(TARGETS), \
-		$(T).out $(T).blg $(T).bbl \
-		$(T).lof $(T).lot $(T).toc $(T).idx \
-		$(T).nav $(T).snm $(T).bcf $(T).run.xml) \
-		$(foreach S,$(addprefix img-,$(SVGFILES)),$(S).pdf $(S).pdf_tex) \
-		$(REVDEPS) $(AUXFILES) $(LOGFILES) \
-		$(EXTRACLEAN)
+	$(RM) $(foreach T,$(TARGETS), $(T).out $(T).blg $(T).bbl $(T).lof $(T).lot $(T).toc $(T).idx $(T).nav $(T).snm $(T).bcf $(T).run.xml $(T).pytxcode pythontex-files-$(T)) $(foreach S,$(addprefix img-,$(SVGFILES)),$(S).pdf $(S).pdf_tex) $(REVDEPS) $(AUXFILES) $(LOGFILES) $(EXTRACLEAN)
