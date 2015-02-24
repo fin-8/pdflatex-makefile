@@ -142,7 +142,7 @@ endif
 
 # to generate aux but not pdf from pdflatex, use -draftmode
 .INTERMEDIATE: $(AUXFILES)
-%.aux %.bbl %.pytxcode: %.tex $(REVDEPS)
+%.aux %.bbl %.pytxcode: %.tex $(REVDEPS) $(BIBFILES)
 	$(PDFLATEX) -draftmode $* $(ERRFILTER)
 
 # introduce BibTeX dependency if we found a \bibliography
