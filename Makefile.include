@@ -159,7 +159,7 @@ endif
 
 ifneq ($(PYTHONTEX),)
 pythontex-files-%: %.pytxcode
-	pythontex $*
+	pythontex --interpreter python:python3 $*
 endif
 
 $(PDFTARGETS): %.pdf: %.tex $(addsuffix .pdf,$(addprefix img-,$(SVGFILES))) %.aux $(PYTHONTEXFILES) $(BIBDEPS) $(INCLUDEDTEX) $(REVDEPS)
